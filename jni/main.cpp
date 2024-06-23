@@ -37,4 +37,18 @@ int main(int argc, char *argv[]) {
         of << "," << int_us.count() / 1000.0 << "\n";
         of.close();
     }
+
+    else if (!strcmp(ch, "1")) { // GAUSSIAN BLUR
+        std::ofstream of;
+        const char *write_filename = "report.csv";
+
+        // opencl
+        auto start = std::chrono::high_resolution_clock::now();
+        gaussian_blur();
+        auto stop = std::chrono::high_resolution_clock::now();
+        auto int_us = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+        of.open(write_filename, std::ios::app);
+        of << "," << int_us.count() / 1000.0 << "\n";
+        of.close();
+    }
 }
