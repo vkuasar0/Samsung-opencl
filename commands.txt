@@ -1,0 +1,83 @@
+Execution commands:
+
+cd jni/
+ndk-build
+runcmds.bat
+
+shell:
+cd data/local/tmp
+sh runapis.sh <func id in main()> <no. of iterations>
+exit
+
+Trial:
+adb pull /data/local/tmp/report.csv ../output
+adb pull /data/local/tmp/<output.png> ../output_rms
+
+
+Extra:
+adb pull /system/vendor/lib64/libOpenCL.so ../obj/local/arm64-v8a
+
+0	Add
+1	Sub
+2	Mul
+3	Div
+4	Absdiff
+5	Mean
+6	Split
+7	Merge
+8	Countnonzero
+9	Cvtcolour
+10	Equal
+11	Normalize
+12	Crop
+13  Boxblur
+14  GaussianBlur
+15  Reshape
+16  Pyrup
+17  Pyrdown
+18  Upsize bicubic
+19  Upsize nearest neighbour
+20  Downsize bicubic
+21  Downsize nearest neighbour
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+0 - add
+1 - cvtcolor
+2 - crop
+3 - boxblur
+4 - gaussianblur
+5 - reshape
+6 - pyrup
+7 - pyrdown
+8 - normalize
+9 - absdiff
+10 - sub
+11 - mul
+12 - div
+13 - mean
+14 - split
+15 - merge
+16 - equal
+17 - upsize bicubic
+18 - upsize nearest neighbour
+19 - countnonzero
+20 - downsize bicubic
+21 - downsize nearest neighbour
