@@ -257,3 +257,93 @@ int gaussian_blur() {
     cv::Mat outputMat(image1.rows, image1.cols, CV_8UC4, outputImageData.data());
     cv::imwrite("output_image.png", outputMat);
 }
+
+int absdiff_images() {
+    cv::Mat image1 = cv::imread("image_add1.png", cv::IMREAD_UNCHANGED);
+    cv::Mat image2 = cv::imread("image_add2.png", cv::IMREAD_UNCHANGED);
+
+    if (image1.empty() || image2.empty()) {
+        std::cerr << "Error loading images!" << std::endl;
+        return -1;
+    }
+
+    // Initialize OpenCL
+    cl_int err;
+    std::vector<cl::Platform> platforms;
+    cl::Platform::get(&platforms);
+    if (platforms.empty()) {
+        std::cerr << "No OpenCL platforms found!" << std::endl;
+        return -1;
+    }
+
+    cl::Platform platform = platforms.front();
+    std::vector<cl::Device> devices;
+    platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
+    if (devices.empty()) {
+        std::cerr << "No OpenCL devices found!" << std::endl;
+        return -1;
+    }
+
+    cl::Device device = devices.front();
+    cl::Context context(device);
+    cl::CommandQueue queue(context, device, 0, &err);
+    CHECK_ERR(err, "CommandQueue");
+
+    // Load and build kernel
+    std::string kernelSource = loadKernel("absdiff.cl");
+    cl::Program::Sources sources;
+    sources.push_back({kernelSource.c_str(), kernelSource.length()});
+
+    cl::Program program(context, sources);
+    err = program.build({device});
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error building kernel: " << err << std::endl;
+        std::cerr << "Build log: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(device) << std::endl;
+        return -1;
+    }
+
+    cl::Kernel kernel(program, "absdiff", &err);
+    CHECK_ERR(err, "Kernel");
+
+    size_t bufferSize = image1.cols * image1.rows * image1.elemSize();
+    cl::Buffer imageBuffer1(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, bufferSize, image1.data, &err);
+    CHECK_ERR(err, "BufferImage1");
+    cl::Buffer imageBuffer2(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, bufferSize, image2.data, &err);
+    CHECK_ERR(err, "BufferImage2");
+    cl::Buffer outputImageBuffer(context, CL_MEM_WRITE_ONLY, bufferSize, nullptr, &err);
+    CHECK_ERR(err, "OutputImageBuffer");
+
+    // Set kernel arguments
+    err = kernel.setArg(0, imageBuffer1);
+    CHECK_ERR(err, "SetArg 0");
+    err = kernel.setArg(1, imageBuffer2);
+    CHECK_ERR(err, "SetArg 1");
+    err = kernel.setArg(2, outputImageBuffer);
+    CHECK_ERR(err, "SetArg 2");
+    err = kernel.setArg(3, image1.cols);
+    CHECK_ERR(err, "SetArg 3");
+    err = kernel.setArg(4, image1.rows);
+    CHECK_ERR(err, "SetArg 4");
+
+    // Enqueue kernel execution
+    cl::NDRange global(image1.cols, image1.rows);
+    cl::Event event;
+    err = queue.enqueueNDRangeKernel(kernel, cl::NullRange, global, cl::NullRange, nullptr, &event);
+    CHECK_ERR(err, "EnqueueNDRangeKernel");
+
+    // Read back the output
+    event.wait();
+    cl_int status = event.getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>();
+    if (status != CL_COMPLETE) {
+        std::cerr << "Error during kernel execution" << std::endl;
+    }
+
+    std::vector<unsigned char> outputImageData(image1.total() * image1.elemSize());
+    err = queue.enqueueReadBuffer(outputImageBuffer, CL_TRUE, 0, bufferSize, outputImageData.data());
+    CHECK_ERR(err, "Read output image");
+
+    cv::Mat outputMat(image1.rows, image1.cols, image1.type(), outputImageData.data());
+    cv::imwrite("output_image_diff.png", outputMat);
+
+    return 0;
+}
