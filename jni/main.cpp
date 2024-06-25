@@ -52,17 +52,18 @@ int main(int argc, char *argv[]) {
         of.close();
     }
 
-     else if (!strcmp(ch, "2")) {  //Absolute Difference
+     else if (!strcmp(ch, "4")) { // MUL
         std::ofstream of;
         const char *write_filename = "report.csv";
 
-        // OpenCL execution
+        // opencl
         auto start = std::chrono::high_resolution_clock::now();
-        absdiff_images();
+        multiply_images();
         auto stop = std::chrono::high_resolution_clock::now();
         auto int_us = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
         of.open(write_filename, std::ios::app);
         of << "," << int_us.count() / 1000.0 << "\n";
         of.close();
     }
+
 }
