@@ -1,4 +1,4 @@
-adb push ../libs/arm64-v8a/. /data/local/tmp
+adb push ../libs/arm64-v8a/myModule /data/local/tmp
 adb push ../inputImgs/image_add1.png /data/local/tmp
 adb push ../inputImgs/image_add2.png /data/local/tmp
 adb push ../inputImgs/output1.png /data/local/tmp
