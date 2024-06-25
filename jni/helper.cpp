@@ -258,12 +258,18 @@ int gaussian_blur() {
     cv::imwrite("output_image.png", outputMat);
 }
 
-int absdiff_images() {
+int multiply_images() { //MULTIPLY
     cv::Mat image1 = cv::imread("image_add1.png", cv::IMREAD_UNCHANGED);
     cv::Mat image2 = cv::imread("image_add2.png", cv::IMREAD_UNCHANGED);
 
     if (image1.empty() || image2.empty()) {
         std::cerr << "Error loading images!" << std::endl;
+        return -1;
+    }
+
+    // Ensure images are of same size and type
+    if (image1.size() != image2.size() || image1.type() != image2.type() || image1.channels() != 4) {
+        std::cerr << "Images must be of the same size and type, with 4 channels (RGBA)!" << std::endl;
         return -1;
     }
 
@@ -290,7 +296,7 @@ int absdiff_images() {
     CHECK_ERR(err, "CommandQueue");
 
     // Load and build kernel
-    std::string kernelSource = loadKernel("absdiff.cl");
+    std::string kernelSource = loadKernel("mul.cl");
     cl::Program::Sources sources;
     sources.push_back({kernelSource.c_str(), kernelSource.length()});
 
@@ -302,7 +308,7 @@ int absdiff_images() {
         return -1;
     }
 
-    cl::Kernel kernel(program, "absdiff", &err);
+    cl::Kernel kernel(program, "multiply_images", &err);
     CHECK_ERR(err, "Kernel");
 
     size_t bufferSize = image1.cols * image1.rows * image1.elemSize();
@@ -336,14 +342,15 @@ int absdiff_images() {
     cl_int status = event.getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>();
     if (status != CL_COMPLETE) {
         std::cerr << "Error during kernel execution" << std::endl;
+        return -1;
     }
 
     std::vector<unsigned char> outputImageData(image1.total() * image1.elemSize());
     err = queue.enqueueReadBuffer(outputImageBuffer, CL_TRUE, 0, bufferSize, outputImageData.data());
     CHECK_ERR(err, "Read output image");
 
-    cv::Mat outputMat(image1.rows, image1.cols, image1.type(), outputImageData.data());
-    cv::imwrite("output_image_diff.png", outputMat);
+    cv::Mat outputMat(image1.rows, image1.cols, CV_8UC4, outputImageData.data());
+    cv::imwrite("output_image.png", outputMat);
 
     return 0;
 }
