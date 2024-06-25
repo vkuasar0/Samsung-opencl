@@ -13,6 +13,6 @@ std::string read_file(const char *filename);
 std::string loadKernel(const char *filename);
 void add_bin();
 int gaussian_blur();
-int absdiff_images();
+int multiply_images();
 
 #endif //SAMPLE_OPENCL_NDK_MASTER_COPY_BLUR_GPU_H
