@@ -24,8 +24,22 @@ int main(int argc, char *argv[]) {
         of.open(write_filename, std::ios::app);
         of << "," << time << "\n";
     }
-
-     else if (!strcmp(ch, "4")) { // MUL
+    else if (!strcmp(ch, "2")) { // CROP
+        double time = crop();
+        of.open(write_filename, std::ios::app);
+        of << "," << time << "\n";
+    }
+    else if (!strcmp(ch, "3")) { // lanczos
+        double time = lanczos();
+        of.open(write_filename, std::ios::app);
+        of << "," << time << "\n";
+    }
+    else if (!strcmp(ch, "4")) { // emboss
+        double time = emboss();
+        of.open(write_filename, std::ios::app);
+        of << "," << time << "\n";
+    }
+    else if (!strcmp(ch, "5")) { // MUL
         double time = multiply_images();
         of.open(write_filename, std::ios::app);
         of << "," << time << "\n";
