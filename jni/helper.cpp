@@ -220,7 +220,7 @@ double gaussian_blur() {
     return (end_time - start_time)/1000.0;
 }
 
-double multiply_images() { //MULTIPLY
+double multiply_images() {  //MULTIPLY
     cv::Mat image1 = cv::imread("image_add1.png", cv::IMREAD_UNCHANGED);
     cv::Mat image2 = cv::imread("image_add2.png", cv::IMREAD_UNCHANGED);
 
@@ -229,13 +229,11 @@ double multiply_images() { //MULTIPLY
         return -1;
     }
 
-    // Ensure images are of same size and type
     if (image1.size() != image2.size() || image1.type() != image2.type() || image1.channels() != 4) {
         std::cerr << "Images must be of the same size and type, with 4 channels (RGBA)!" << std::endl;
         return -1;
     }
 
-    // Initialize OpenCL
     cl_int err;
     std::vector<cl::Platform> platforms;
     cl::Platform::get(&platforms);
@@ -254,14 +252,12 @@ double multiply_images() { //MULTIPLY
 
     cl::Device device = devices.front();
     cl::Context context(device);
-    cl::CommandQueue queue(context, device, 0, &err);
+    cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
     CHECK_ERR(err, "CommandQueue");
 
-    // Load and build kernel
     std::string kernelSource = loadKernel("mul.cl");
     cl::Program::Sources sources;
     sources.push_back({kernelSource.c_str(), kernelSource.length()});
-
     cl::Program program(context, sources);
     err = program.build({device});
     if (err != CL_SUCCESS) {
@@ -270,7 +266,7 @@ double multiply_images() { //MULTIPLY
         return -1;
     }
 
-    cl::Kernel kernel(program, "multiply_images", &err);
+    cl::Kernel kernel(program, "mul", &err);
     CHECK_ERR(err, "Kernel");
 
     size_t bufferSize = image1.cols * image1.rows * image1.elemSize();
@@ -281,7 +277,6 @@ double multiply_images() { //MULTIPLY
     cl::Buffer outputImageBuffer(context, CL_MEM_WRITE_ONLY, bufferSize, nullptr, &err);
     CHECK_ERR(err, "OutputImageBuffer");
 
-    // Set kernel arguments
     err = kernel.setArg(0, imageBuffer1);
     CHECK_ERR(err, "SetArg 0");
     err = kernel.setArg(1, imageBuffer2);
@@ -293,14 +288,16 @@ double multiply_images() { //MULTIPLY
     err = kernel.setArg(4, image1.rows);
     CHECK_ERR(err, "SetArg 4");
 
-    // Enqueue kernel execution
     cl::NDRange global(image1.cols, image1.rows);
     cl::Event event;
     err = queue.enqueueNDRangeKernel(kernel, cl::NullRange, global, cl::NullRange, nullptr, &event);
     CHECK_ERR(err, "EnqueueNDRangeKernel");
 
-    // Read back the output
     event.wait();
+    cl_ulong start_time, end_time;
+    event.getProfilingInfo(CL_PROFILING_COMMAND_START, &start_time);
+    event.getProfilingInfo(CL_PROFILING_COMMAND_END, &end_time);
+
     cl_int status = event.getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>();
     if (status != CL_COMPLETE) {
         std::cerr << "Error during kernel execution" << std::endl;
@@ -310,13 +307,13 @@ double multiply_images() { //MULTIPLY
     std::vector<unsigned char> outputImageData(image1.total() * image1.elemSize());
     err = queue.enqueueReadBuffer(outputImageBuffer, CL_TRUE, 0, bufferSize, outputImageData.data());
     CHECK_ERR(err, "Read output image");
+    queue.finish();
 
     cv::Mat outputMat(image1.rows, image1.cols, CV_8UC4, outputImageData.data());
     cv::imwrite("output_multiply.png", outputMat);
 
-    return 0;
+    return (end_time - start_time) / 1000.0;
 }
-
 
 
 double crop() {
