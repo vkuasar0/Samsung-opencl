@@ -49,6 +49,11 @@ int main(int argc, char *argv[]) {
         of.open(write_filename, std::ios::app);
         of << "," << time << "\n";
     }
+    else if (!strcmp(ch, "7")) { // CVT- RGB TO BGR SWAP
+        double time = cvt();
+        of.open(write_filename, std::ios::app);
+        of << "," << time << "\n";
+    }
 
     of.close();
 }
