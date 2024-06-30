@@ -814,7 +814,7 @@ double gray_bgr() {
     cv::imwrite("output_gray_background.png", outputMat);
 
     // Calculate and return execution time in milliseconds
-    double executionTime = static_cast<double>(end_time - start_time) / 1000000.0;
+    double executionTime = static_cast<double>(end_time - start_time) / 1000.0;
     return executionTime;
 }
 
