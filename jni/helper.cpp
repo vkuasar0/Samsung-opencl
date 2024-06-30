@@ -710,3 +710,111 @@ double emboss()
     cv::imwrite("output_emboss.png", outputMat);
     return (end_time - start_time) / 1000.0;
 }
+
+double gray_bgr() {
+    // Load input image
+    cv::Mat image1 = cv::imread("image_add1.png", cv::IMREAD_COLOR);
+
+    if (image1.empty()) {
+        std::cerr << "Error loading image!" << std::endl;
+        return -1.0;
+    }
+
+    // Load kernel source
+    std::string kernelSource = loadKernel("gray_bgr.cl");
+
+    // Initialize OpenCL environment
+    cl_int err;
+    std::vector<cl::Platform> platforms;
+    cl::Platform::get(&platforms);
+    if (platforms.empty()) {
+        std::cerr << "No OpenCL platforms found!" << std::endl;
+        return -1.0;
+    }
+
+    cl::Platform platform = platforms.front();
+    std::vector<cl::Device> devices;
+    platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
+    if (devices.empty()) {
+        std::cerr << "No OpenCL devices found!" << std::endl;
+        return -1.0;
+    }
+
+    cl::Device device = devices.front();
+    cl::Context context(device);
+    cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
+    CHECK_ERR(err, "CommandQueue");
+
+    // Build the OpenCL program
+    cl::Program::Sources sources;
+    sources.push_back({kernelSource.c_str(), kernelSource.length()});
+    cl::Program program(context, sources);
+    err = program.build({device});
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error building kernel: " << err << std::endl;
+        std::cerr << "Build log: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(device) << std::endl;
+        return -1.0;
+    }
+
+    // Create kernel
+    cl::Kernel kernel(program, "gray_bgr", &err);
+    CHECK_ERR(err, "Kernel");
+
+    // Create input and output buffers
+    size_t bufferSize = image1.cols * image1.rows * image1.channels() * sizeof(uchar);
+    cl::Buffer inputImageBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, bufferSize, image1.data, &err);
+    CHECK_ERR(err, "InputImageBuffer");
+
+    cl::Buffer outputImageBuffer(context, CL_MEM_WRITE_ONLY, image1.rows * image1.cols * sizeof(uchar), nullptr, &err);
+    CHECK_ERR(err, "OutputImageBuffer");
+
+    // Set kernel arguments
+    err = kernel.setArg(0, inputImageBuffer);
+    CHECK_ERR(err, "InputImage");
+    err = kernel.setArg(1, outputImageBuffer);
+    CHECK_ERR(err, "OutputImage");
+    err = kernel.setArg(2, static_cast<int>(image1.cols));
+    CHECK_ERR(err, "Width");
+    err = kernel.setArg(3, static_cast<int>(image1.rows));
+    CHECK_ERR(err, "Height");
+    err = kernel.setArg(4, static_cast<int>(image1.channels()));
+    CHECK_ERR(err, "Channels");
+
+    // Enqueue kernel
+    cl::NDRange global(image1.cols, image1.rows);
+    cl::Event event;
+    err = queue.enqueueNDRangeKernel(kernel, cl::NullRange, global, cl::NullRange, nullptr, &event);
+    CHECK_ERR(err, "EnqueueNDRangeKernel");
+
+    // Wait for kernel to finish
+    event.wait();
+
+    // Timing information
+    cl_ulong start_time, end_time;
+    event.getProfilingInfo(CL_PROFILING_COMMAND_START, &start_time);
+    event.getProfilingInfo(CL_PROFILING_COMMAND_END, &end_time);
+
+    // Check execution status
+    cl_int status = event.getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>();
+    if (status != CL_COMPLETE) {
+        std::cerr << "Error during kernel execution" << std::endl;
+        return -1.0;
+    }
+
+    // Read back the processed data
+    std::vector<uchar> outputImageData(image1.rows * image1.cols);
+    err = queue.enqueueReadBuffer(outputImageBuffer, CL_TRUE, 0, image1.rows * image1.cols * sizeof(uchar), outputImageData.data());
+    CHECK_ERR(err, "Read output image");
+
+    // Ensure all commands in the queue are finished
+    queue.finish();
+
+    // Create grayscale output image
+    cv::Mat outputMat(image1.rows, image1.cols, CV_8UC1, outputImageData.data());
+    cv::imwrite("output_gray_background.png", outputMat);
+
+    // Calculate and return execution time in milliseconds
+    double executionTime = static_cast<double>(end_time - start_time) / 1000000.0;
+    return executionTime;
+}
+
