@@ -44,6 +44,11 @@ int main(int argc, char *argv[]) {
         of.open(write_filename, std::ios::app);
         of << "," << time << "\n";
     }
+    else if (!strcmp(ch, "6")) { // GRAY
+        double time = gray_bgr();
+        of.open(write_filename, std::ios::app);
+        of << "," << time << "\n";
+    }
 
     of.close();
 }
