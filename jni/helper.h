@@ -15,5 +15,6 @@ double crop();
 double lanczos();
 double emboss();
 double multiply_images();
+double gray_bgr();
 
 #endif //SAMPLE_OPENCL_NDK_MASTER_COPY_BLUR_GPU_H
