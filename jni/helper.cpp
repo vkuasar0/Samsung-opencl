@@ -815,3 +815,89 @@ double gray_bgr() {
     return executionTime;
 }
 
+double cvt() {
+    cv::Mat inputImage = cv::imread("image_add2.png", cv::IMREAD_COLOR);
+
+    if (inputImage.empty()) {
+        std::cerr << "Error loading input image!" << std::endl;
+        return -1;
+    }
+
+    cl_int err;
+    std::vector<cl::Platform> platforms;
+    cl::Platform::get(&platforms);
+    if (platforms.empty()) {
+        std::cerr << "No OpenCL platforms found!" << std::endl;
+        return -1;
+    }
+
+    cl::Platform platform = platforms.front();
+    std::vector<cl::Device> devices;
+    platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
+    if (devices.empty()) {
+        std::cerr << "No OpenCL devices found!" << std::endl;
+        return -1;
+    }
+
+    cl::Device device = devices.front();
+    cl::Context context(device);
+    cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
+    CHECK_ERR(err, "CommandQueue");
+
+    std::string kernelSource = loadKernel("cvtColor_bgr.cl");
+    cl::Program::Sources sources;
+    sources.push_back({kernelSource.c_str(), kernelSource.length()});
+    cl::Program program(context, sources);
+    err = program.build({device});
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error building kernel: " << err << std::endl;
+        std::cerr << "Build log: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(device) << std::endl;
+        return -1;
+    }
+
+    cl::Kernel kernel(program, "rgb", &err);
+    CHECK_ERR(err, "Kernel");
+
+    int width = inputImage.cols;
+    int height = inputImage.rows;
+    size_t bufferSize = width * height * inputImage.elemSize();
+    cl::Buffer inputBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, bufferSize, inputImage.data, &err);
+    CHECK_ERR(err, "InputBuffer");
+    cl::Buffer outputBuffer(context, CL_MEM_WRITE_ONLY, bufferSize, nullptr, &err);
+    CHECK_ERR(err, "OutputBuffer");
+
+    err = kernel.setArg(0, inputBuffer);
+    CHECK_ERR(err, "SetArg 0");
+    err = kernel.setArg(1, outputBuffer);
+    CHECK_ERR(err, "SetArg 1");
+    err = kernel.setArg(2, width);
+    CHECK_ERR(err, "SetArg 2");
+    err = kernel.setArg(3, height);
+    CHECK_ERR(err, "SetArg 3");
+
+    cl::NDRange global(width, height);
+    cl::Event event;
+    err = queue.enqueueNDRangeKernel(kernel, cl::NullRange, global, cl::NullRange, nullptr, &event);
+    CHECK_ERR(err, "EnqueueNDRangeKernel");
+
+    event.wait();
+    cl_ulong start_time, end_time;
+    event.getProfilingInfo(CL_PROFILING_COMMAND_START, &start_time);
+    event.getProfilingInfo(CL_PROFILING_COMMAND_END, &end_time);
+
+    cl_int status = event.getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>();
+    if (status != CL_COMPLETE) {
+        std::cerr << "Error during kernel execution" << std::endl;
+        return -1;
+    }
+
+    std::vector<unsigned char> outputImageData(bufferSize);
+    err = queue.enqueueReadBuffer(outputBuffer, CL_TRUE, 0, bufferSize, outputImageData.data());
+    CHECK_ERR(err, "Read output image");
+    queue.finish();
+
+    cv::Mat outputImage(height, width, inputImage.type(), outputImageData.data());
+    cv::imwrite("output_image_cvt.png", outputImage);
+
+    return (end_time - start_time) / 1000.0; // Convert nanoseconds to microseconds
+}
