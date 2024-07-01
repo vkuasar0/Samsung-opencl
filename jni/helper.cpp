@@ -901,3 +901,134 @@ double cvt() {
 
     return (end_time - start_time) / 1000.0; // Convert nanoseconds to microseconds
 }
+
+double reshape_image() {
+    // Load input image
+    cv::Mat image1 = cv::imread("image_add1.png", cv::IMREAD_COLOR);
+    if (image1.empty()) {
+        std::cerr << "Error loading image!" << std::endl;
+        return -1.0;
+    }
+
+    // Desired output dimensions
+    int dst_rows = image1.rows / 2;  // For example, resize to half the original size
+    int dst_cols = image1.cols / 2;
+    int dst_channels = image1.channels();
+
+    // Load kernel source
+    std::string kernelSource = loadKernel("reshape.cl");
+
+    // Initialize OpenCL environment
+    cl_int err;
+    std::vector<cl::Platform> platforms;
+    cl::Platform::get(&platforms);
+    if (platforms.empty()) {
+        std::cerr << "No OpenCL platforms found!" << std::endl;
+        return -1.0;
+    }
+
+    cl::Platform platform = platforms.front();
+    std::vector<cl::Device> devices;
+    platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
+    if (devices.empty()) {
+        std::cerr << "No OpenCL devices found!" << std::endl;
+        return -1.0;
+    }
+
+    cl::Device device = devices.front();
+    cl::Context context(device);
+    cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error creating command queue: " << err << std::endl;
+        return -1.0;
+    }
+
+    // Build the OpenCL program
+    cl::Program::Sources sources;
+    sources.push_back({kernelSource.c_str(), kernelSource.length()});
+    cl::Program program(context, sources);
+    err = program.build({device});
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error building kernel: " << err << std::endl;
+        std::cerr << "Build log: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(device) << std::endl;
+        return -1.0;
+    }
+
+    // Create kernel
+    cl::Kernel kernel(program, "reshape", &err);
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error creating kernel: " << err << std::endl;
+        return -1.0;
+    }
+
+    // Create input and output buffers
+    size_t inputBufferSize = image1.total() * image1.elemSize();
+    size_t outputBufferSize = dst_rows * dst_cols * dst_channels * sizeof(uchar);
+    cl::Buffer inputImageBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, inputBufferSize, image1.data, &err);
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error creating input image buffer: " << err << std::endl;
+        return -1.0;
+    }
+    cl::Buffer outputImageBuffer(context, CL_MEM_WRITE_ONLY, outputBufferSize, nullptr, &err);
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error creating output image buffer: " << err << std::endl;
+        return -1.0;
+    }
+
+    // Set kernel arguments
+    err = kernel.setArg(0, inputImageBuffer);
+    err |= kernel.setArg(1, outputImageBuffer);
+    err |= kernel.setArg(2, image1.rows);
+    err |= kernel.setArg(3, image1.cols);
+    err |= kernel.setArg(4, dst_rows);
+    err |= kernel.setArg(5, dst_cols);
+    err |= kernel.setArg(6, image1.channels());
+    err |= kernel.setArg(7, dst_channels);
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error setting kernel arguments: " << err << std::endl;
+        return -1.0;
+    }
+
+    // Enqueue kernel
+    cl::NDRange global(dst_cols, dst_rows);
+    cl::Event event;
+    err = queue.enqueueNDRangeKernel(kernel, cl::NullRange, global, cl::NullRange, nullptr, &event);
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error enqueuing kernel: " << err << std::endl;
+        return -1.0;
+    }
+
+    // Wait for kernel to finish
+    event.wait();
+
+    // Timing information
+    cl_ulong start_time, end_time;
+    event.getProfilingInfo(CL_PROFILING_COMMAND_START, &start_time);
+    event.getProfilingInfo(CL_PROFILING_COMMAND_END, &end_time);
+
+    // Check execution status
+    cl_int status = event.getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>();
+    if (status != CL_COMPLETE) {
+        std::cerr << "Error during kernel execution" << std::endl;
+        return -1.0;
+    }
+
+    // Read back the processed data
+    std::vector<uchar> outputImageData(dst_rows * dst_cols * dst_channels);
+    err = queue.enqueueReadBuffer(outputImageBuffer, CL_TRUE, 0, outputBufferSize, outputImageData.data());
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error reading output image: " << err << std::endl;
+        return -1.0;
+    }
+
+    // Ensure all commands in the queue are finished
+    queue.finish();
+
+    // Create reshaped output image
+    cv::Mat outputMat(dst_rows, dst_cols, CV_8UC3, outputImageData.data());
+    cv::imwrite("reshaped_image.png", outputMat);
+
+    // Calculate and return execution time in milliseconds
+    double executionTime = static_cast<double>(end_time - start_time) / 1000.0;
+    return executionTime;
+}
