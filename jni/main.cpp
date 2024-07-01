@@ -54,6 +54,11 @@ int main(int argc, char *argv[]) {
         of.open(write_filename, std::ios::app);
         of << "," << time << "\n";
     }
+     else if (!strcmp(ch, "9")) { // RESHAPE
+        double time = reshape_image();
+        of.open(write_filename, std::ios::app);
+        of << "," << time << "\n";
+    }
 
     of.close();
 }
