@@ -1,17 +1,19 @@
-__kernel void bgr(__global const uchar *grayImage, __global uchar *bgrImage,
-                  int width, int height) {
-  int x = get_global_id(0);
-  int y = get_global_id(1);
+__kernel void gray_bgr(__global const uchar* inputImage, __global uchar* outputImage,
+                       int width, int height, int channels) {
+    int x = get_global_id(0);
+    int y = get_global_id(1);
 
-  if (x < width && y < height) {
-    int grayIndex = y * width + x;
-    int bgrIndex = grayIndex * 3;
+    if (x < width && y < height) {
+        int index = (y * width + x) * channels;
+        uchar b = inputImage[index];
+        uchar g = inputImage[index + 1];
+        uchar r = inputImage[index + 2];
 
-    uchar gray = grayImage[grayIndex];
+        // Calculate grayscale value using the luminosity method
+        float grayFloat = 0.299f * r + 0.587f * g + 0.114f * b;
+        uchar gray = convert_uchar_sat(grayFloat); // Convert to uchar with saturation
 
-    bgrImage[bgrIndex++] = gray;
-    bgrImage[bgrIndex++] = gray;
-    bgrImage[bgrIndex] = gray;
-  }
+        // Write grayscale value to output image
+        outputImage[y * width + x] = gray;
+    }
 }
-// Kernel execution time: 0.997888 ms
