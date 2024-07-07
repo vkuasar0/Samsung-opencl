@@ -59,6 +59,16 @@ int main(int argc, char *argv[]) {
         of.open(write_filename, std::ios::app);
         of << "," << time << "\n";
     }
+    else if (!strcmp(ch, "14")) { // DOWNSIZE NNI
+        double time = downsize_image();
+        of.open(write_filename, std::ios::app);
+        of << "," << time << "\n";
+    }
+    else if (!strcmp(ch, "16")) { // DOWNSIZE BICUBIC
+        double time = downsize_bicubic();
+        of.open(write_filename, std::ios::app);
+        of << "," << time << "\n";
+    }
 
     of.close();
 }
