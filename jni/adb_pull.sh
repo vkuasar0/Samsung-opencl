@@ -7,5 +7,7 @@ adb pull /data/local/tmp/output_emboss.png ../output
 adb pull /data/local/tmp/output_gray_background.png ../output
 adb pull /data/local/tmp/output_image_cvt.png ../output
 adb pull /data/local/tmp/reshaped_image.png ../output
+adb pull /data/local/tmp/output_downsized.png ../output
+adb pull /data/local/tmp/output_downsize_bicubic.png ../output
 
 adb pull /data/local/tmp/report.csv ../output
