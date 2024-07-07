@@ -1026,7 +1026,7 @@ double reshape_image() {
 
     // Create reshaped output image
     cv::Mat outputMat(dst_rows, dst_cols, CV_8UC3, outputImageData.data());
-    cv::imwrite("reshaped_image.png", outputMat);
+    cv::imwrite("output_reshape.png", outputMat);
 
     // Calculate and return execution time in milliseconds
     double executionTime = static_cast<double>(end_time - start_time) / 1000.0;
