@@ -18,5 +18,7 @@ double multiply_images();
 double gray_bgr();
 double cvt();
 double reshape_image();
+double downsize_image();
+double downsize_bicubic();
 
 #endif //SAMPLE_OPENCL_NDK_MASTER_COPY_BLUR_GPU_H
