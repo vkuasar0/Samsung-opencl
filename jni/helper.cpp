@@ -1032,3 +1032,207 @@ double reshape_image() {
     double executionTime = static_cast<double>(end_time - start_time) / 1000.0;
     return executionTime;
 }
+
+double downsize_image() {
+    cv::Mat image = cv::imread("image_add1.png", cv::IMREAD_COLOR);
+
+    if (image.empty()) {
+        std::cerr << "Error loading image!" << std::endl;
+        return -1;
+    }
+
+    int inWidth = image.cols;
+    int inHeight = image.rows;
+
+    int outWidth = inWidth / 2;  // Example downsizing by a factor of 2
+    int outHeight = inHeight / 2;
+
+    cl_int err;
+    std::vector<cl::Platform> platforms;
+    cl::Platform::get(&platforms);
+    if (platforms.empty()) {
+        std::cerr << "No OpenCL platforms found!" << std::endl;
+        return -1;
+    }
+
+    cl::Platform platform = platforms.front();
+    std::vector<cl::Device> devices;
+    platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
+    if (devices.empty()) {
+        std::cerr << "No OpenCL devices found!" << std::endl;
+        return -1;
+    }
+
+    cl::Device device = devices.front();
+    cl::Context context(device);
+    cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error creating command queue: " << err << std::endl;
+        return -1;
+    }
+
+    std::string kernelSource = loadKernel("downsize_nni.cl");  // Adjust the kernel filename as per your setup
+    cl::Program::Sources sources;
+    sources.push_back({kernelSource.c_str(), kernelSource.length()});
+
+    cl::Program program(context, sources);
+    err = program.build({device});
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error building kernel: " << err << std::endl;
+        std::cerr << "Build log: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(device) << std::endl;
+        return -1;
+    }
+
+    cl::Kernel kernel(program, "downsize", &err);
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error creating kernel: " << err << std::endl;
+        return -1;
+    }
+
+    size_t bufferSize = outWidth * outHeight * image.elemSize();
+    cl::Buffer inBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, image.total() * image.elemSize(), image.data, &err);
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error creating input buffer: " << err << std::endl;
+        return -1;
+    }
+
+    cl::Buffer outBuffer(context, CL_MEM_WRITE_ONLY, bufferSize, nullptr, &err);
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error creating output buffer: " << err << std::endl;
+        return -1;
+    }
+
+    err = kernel.setArg(0, inBuffer);
+    err |= kernel.setArg(1, outBuffer);
+    err |= kernel.setArg(2, inWidth);
+    err |= kernel.setArg(3, inHeight);
+    err |= kernel.setArg(4, outWidth);
+    err |= kernel.setArg(5, outHeight);
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error setting kernel arguments: " << err << std::endl;
+        return -1;
+    }
+
+    cl::NDRange global(outWidth, outHeight);
+    cl::Event event;
+    err = queue.enqueueNDRangeKernel(kernel, cl::NullRange, global, cl::NullRange, nullptr, &event);
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error enqueueing kernel: " << err << std::endl;
+        return -1;
+    }
+
+    event.wait();
+    cl_ulong start_time, end_time;
+    event.getProfilingInfo(CL_PROFILING_COMMAND_START, &start_time);
+    event.getProfilingInfo(CL_PROFILING_COMMAND_END, &end_time);
+
+    std::vector<unsigned char> outputImageData(bufferSize);
+    err = queue.enqueueReadBuffer(outBuffer, CL_TRUE, 0, bufferSize, outputImageData.data());
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error reading output buffer: " << err << std::endl;
+        return -1;
+    }
+
+    queue.finish();
+
+    cv::Mat outputMat(outHeight, outWidth, image.type(), outputImageData.data());
+    cv::imwrite("output_downsized.png", outputMat);
+
+    return static_cast<double>(end_time - start_time) / 1000.0;  // Convert nanoseconds to milliseconds
+}
+
+double downsize_bicubic() {
+    cv::Mat inputImage = cv::imread("image_add1.png", cv::IMREAD_COLOR);
+
+    if (inputImage.empty()) {
+        std::cerr << "Error loading input image!" << std::endl;
+        return -1;
+    }
+
+    int width = inputImage.cols;
+    int height = inputImage.rows;
+    int new_width = width / 2;  // Example downsampling factor
+    int new_height = height / 2;
+
+    cl_int err;
+    std::vector<cl::Platform> platforms;
+    cl::Platform::get(&platforms);
+    if (platforms.empty()) {
+        std::cerr << "No OpenCL platforms found!" << std::endl;
+        return -1;
+    }
+
+    cl::Platform platform = platforms.front();
+    std::vector<cl::Device> devices;
+    platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
+    if (devices.empty()) {
+        std::cerr << "No OpenCL devices found!" << std::endl;
+        return -1;
+    }
+
+    cl::Device device = devices.front();
+    cl::Context context(device);
+    cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
+    CHECK_ERR(err, "CommandQueue");
+
+    std::string kernelSource = loadKernel("downsize_bicubic.cl");
+    cl::Program::Sources sources;
+    sources.push_back({kernelSource.c_str(), kernelSource.length()});
+
+    cl::Program program(context, sources);
+    err = program.build({device});
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error building kernel: " << err << std::endl;
+        std::cerr << "Build log: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(device) << std::endl;
+        return -1;
+    }
+
+    cl::Kernel kernel(program, "downsize", &err);
+    CHECK_ERR(err, "Kernel");
+
+    size_t bufferSize = inputImage.cols * inputImage.rows * inputImage.elemSize();
+    cl::Buffer inputBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, bufferSize, inputImage.data, &err);
+    CHECK_ERR(err, "InputBuffer");
+
+    size_t outputSize = new_width * new_height * inputImage.elemSize();
+    cl::Buffer outputBuffer(context, CL_MEM_WRITE_ONLY, outputSize, nullptr, &err);
+    CHECK_ERR(err, "OutputBuffer");
+
+    err = kernel.setArg(0, inputBuffer);
+    CHECK_ERR(err, "SetArg 0");
+    err = kernel.setArg(1, outputBuffer);
+    CHECK_ERR(err, "SetArg 1");
+    err = kernel.setArg(2, width);
+    CHECK_ERR(err, "SetArg 2");
+    err = kernel.setArg(3, height);
+    CHECK_ERR(err, "SetArg 3");
+    err = kernel.setArg(4, new_width);
+    CHECK_ERR(err, "SetArg 4");
+    err = kernel.setArg(5, new_height);
+    CHECK_ERR(err, "SetArg 5");
+
+    cl::NDRange global(new_width, new_height);
+    cl::Event event;
+    err = queue.enqueueNDRangeKernel(kernel, cl::NullRange, global, cl::NullRange, nullptr, &event);
+    CHECK_ERR(err, "EnqueueNDRangeKernel");
+    event.wait();
+
+    cl_ulong start_time, end_time;
+    event.getProfilingInfo(CL_PROFILING_COMMAND_START, &start_time);
+    event.getProfilingInfo(CL_PROFILING_COMMAND_END, &end_time);
+
+    cl_int status = event.getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>();
+    if (status != CL_COMPLETE) {
+        std::cerr << "Error during kernel execution" << std::endl;
+    }
+
+    std::vector<unsigned char> outputImageData(new_width * new_height * inputImage.elemSize());
+    err = queue.enqueueReadBuffer(outputBuffer, CL_TRUE, 0, outputSize, outputImageData.data());
+    CHECK_ERR(err, "Read output image");
+    queue.finish();
+
+    cv::Mat outputMat(new_height, new_width, inputImage.type(), outputImageData.data());
+    cv::imwrite("output_downsize_bicubic.png", outputMat);
+
+    return (end_time - start_time) / 1000.0;
+}
