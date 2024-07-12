@@ -6,20 +6,13 @@
 #include <functional>
 #include "helper.h"
 
-double measure_time(std::function<double()> func) {
-    auto start = std::chrono::high_resolution_clock::now();
-    double result = func();
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::micro> duration = end - start; // measure duration in microseconds
-    return duration.count(); 
-}
 
 void log_times(const std::string& operation_name, std::function<double()> func, int iterations) {
     std::string filename = "report_" + operation_name + ".csv";
     std::ofstream of(filename, std::ios::app);
     double totalTime = 0.0;
     for (int i = 0; i < iterations; ++i) {
-        double time = measure_time(func);
+        double time = func();
         totalTime += time;
         of << time << "\n";
     }
