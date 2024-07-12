@@ -11,7 +11,7 @@ double measure_time(std::function<double()> func) {
     double result = func();
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::micro> duration = end - start; // measure duration in microseconds
-    return duration.count(); // return the duration in microseconds
+    return duration.count(); 
 }
 
 void log_times(const std::string& operation_name, std::function<double()> func, int iterations) {
