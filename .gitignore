@@ -4,3 +4,6 @@
 .idea
 .vscode
 /output
+jni/perfetto
+jni/trace
+jni/trace_file.perfetto-trace
