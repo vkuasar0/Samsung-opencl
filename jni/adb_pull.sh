@@ -9,5 +9,12 @@ adb pull /data/local/tmp/output_image_cvt.png ../output
 adb pull /data/local/tmp/reshaped_image.png ../output
 adb pull /data/local/tmp/output_downsized.png ../output
 adb pull /data/local/tmp/output_downsize_bicubic.png ../output
+adb pull /data/local/tmp/output_ycbcr.png ../output
+adb pull /data/local/tmp/output_rgb.png ../output
+adb pull /data/local/tmp/output_solarize.png ../output
+adb pull /data/local/tmp/output_pixellate.png ../output
+adb pull /data/local/tmp/output_nearest_neighbor.png ../output
+adb pull /data/local/tmp/output_noop.png ../output
+adb pull /data/local/tmp/output_texture.png ../output
 
 adb pull /data/local/tmp/report.csv ../output
