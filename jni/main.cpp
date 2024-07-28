@@ -69,6 +69,46 @@ int main(int argc, char *argv[]) {
         of.open(write_filename, std::ios::app);
         of << "," << time << "\n";
     }
+    else if (!strcmp(ch, "11")) { // RGB TO YCbCr
+        double time = rgbToYCbCr();
+        of.open(write_filename, std::ios::app);
+        of << "," << time << "\n";
+    }
+
+    else if (!strcmp(ch, "12")) { // YCbCr to RGB
+        double time = ycbcrToRgb();
+        of.open(write_filename, std::ios::app);
+        of << "," << time << "\n";
+    }
+    else if (!strcmp(ch, "19")) { // SOLARIZE
+        double time = solarize_image();
+        of.open(write_filename, std::ios::app);
+        of << "," << time << "\n";
+    }
+
+    else if (!strcmp(ch, "20")) { // PIXELLATE
+        double time = pixellate_image();
+        of.open(write_filename, std::ios::app);
+        of << "," << time << "\n";
+    }
+
+    else if (!strcmp(ch, "21")) { // NEAREST NEIGHBOR
+        double time = nearestNeighborImage();
+        of.open(write_filename, std::ios::app);
+        of << "," << time << "\n";
+    }
+
+    else if (!strcmp(ch, "22")) { // NOOP
+        double time = processImage();
+        of.open(write_filename, std::ios::app);
+        of << "," << time << "\n";
+    }
+
+    else if (!strcmp(ch, "23")) { // TEXTURE
+        double time = texture();
+        of.open(write_filename, std::ios::app);
+        of << "," << time << "\n";
+    }
 
     of.close();
 }
