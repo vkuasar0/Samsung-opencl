@@ -20,5 +20,12 @@ double cvt();
 double reshape_image();
 double downsize_image();
 double downsize_bicubic();
+double solarize_image();
+double pixellate_image();
+double nearestNeighborImage();
+double processImage();
+double texture();
+double rgbToYCbCr();
+double ycbcrToRgb();
 
 #endif //SAMPLE_OPENCL_NDK_MASTER_COPY_BLUR_GPU_H
