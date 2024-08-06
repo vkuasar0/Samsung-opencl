@@ -110,5 +110,17 @@ int main(int argc, char *argv[]) {
         of << "," << time << "\n";
     }
 
+    else if (!strcmp(ch, "25")) { // SOBEL EDGE
+        double time = sobelEdge();
+        of.open(write_filename, std::ios::app);
+        of << "," << time << "\n";
+    }
+
+    else if (!strcmp(ch, "27")) { // MEDIAN FILTER
+        double time = median_filter_image();
+        of.open(write_filename, std::ios::app);
+        of << "," << time << "\n";
+    }
+
     of.close();
 }
