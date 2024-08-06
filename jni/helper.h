@@ -27,5 +27,7 @@ double processImage();
 double texture();
 double rgbToYCbCr();
 double ycbcrToRgb();
+double sobelEdge();
+double median_filter_image();
 
 #endif //SAMPLE_OPENCL_NDK_MASTER_COPY_BLUR_GPU_H
