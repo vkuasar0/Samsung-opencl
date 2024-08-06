@@ -1906,3 +1906,226 @@ double texture() {
     return (end_time - start_time) / 1000.0; // Convert nanoseconds to milliseconds
 }
 
+
+double sobelEdge() {
+    cv::Mat image = cv::imread("image_add1.png", cv::IMREAD_UNCHANGED);
+
+    if (image.empty()) {
+        std::cerr << "Error loading image!" << std::endl;
+        return -1;
+    }
+
+    cl_int err;
+    std::vector<cl::Platform> platforms;
+    cl::Platform::get(&platforms);
+    if (platforms.empty()) {
+        std::cerr << "No OpenCL platforms found!" << std::endl;
+        return -1;
+    }
+
+    cl::Platform platform = platforms.front();
+    std::vector<cl::Device> devices;
+    platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
+    if (devices.empty()) {
+        std::cerr << "No OpenCL devices found!" << std::endl;
+        return -1;
+    }
+
+    cl::Device device = devices.front();
+    cl::Context context(device);
+    cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
+    CHECK_ERR(err, "CommandQueue");
+
+    // Load kernel source
+    std::string kernelSource = R"(
+        __constant sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST;
+
+        __kernel void sobelEdge(__read_only image2d_t srcImage, __write_only image2d_t dstImage) {
+            const int2 pos = {get_global_id(0), get_global_id(1)};
+            
+            float Gx[3][3] = {
+                {-1, 0, 1},
+                {-2, 0, 2},
+                {-1, 0, 1}
+            };
+            
+            float Gy[3][3] = {
+                {-1, -2, -1},
+                {0, 0, 0},
+                {1, 2, 1}
+            };
+            
+            float4 sumX = (float4)(0.0f);
+            float4 sumY = (float4)(0.0f);
+            
+            for (int i = -1; i <= 1; ++i) {
+                for (int j = -1; j <= 1; ++j) {
+                    int2 coord = pos + (int2)(i, j);
+                    coord.x = clamp(coord.x, 0, get_image_width(srcImage) - 1);
+                    coord.y = clamp(coord.y, 0, get_image_height(srcImage) - 1);
+                    
+                    float4 color = read_imagef(srcImage, sampler, coord);
+                    sumX += Gx[i + 1][j + 1] * color;
+                    sumY += Gy[i + 1][j + 1] * color;
+                }
+            }
+            
+            float4 magnitude = sqrt(sumX * sumX + sumY * sumY);
+            magnitude.w = 1.0f; // Ensure the alpha channel is set to 1.0
+            write_imagef(dstImage, pos, magnitude);
+        }
+    )";
+
+    // Create program and build kernel
+    cl::Program::Sources sources;
+    sources.push_back({kernelSource.c_str(), kernelSource.length()});
+    cl::Program program(context, sources);
+    err = program.build({device});
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error building kernel: " << err << std::endl;
+        std::cerr << "Build log: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(device) << std::endl;
+        return -1;
+    }
+
+    // Create kernel
+    cl::Kernel kernel(program, "sobelEdge", &err);
+    CHECK_ERR(err, "Kernel");
+
+    // Create image objects
+    cl::ImageFormat format(CL_RGBA, CL_UNORM_INT8);
+    cl::Image2D inputImage(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, format, image.cols, image.rows, 0, image.data, &err);
+    CHECK_ERR(err, "InputImage");
+
+    cl::Image2D outputImage(context, CL_MEM_WRITE_ONLY, format, image.cols, image.rows);
+    CHECK_ERR(err, "OutputImage");
+
+    // Set kernel arguments
+    err = kernel.setArg(0, inputImage);
+    CHECK_ERR(err, "SetArg 0");
+
+    err = kernel.setArg(1, outputImage);
+    CHECK_ERR(err, "SetArg 1");
+
+    // Set global and local work sizes
+    cl::NDRange global(image.cols, image.rows);
+    cl::Event event;
+
+    // Enqueue kernel
+    err = queue.enqueueNDRangeKernel(kernel, cl::NullRange, global, cl::NullRange, nullptr, &event);
+    CHECK_ERR(err, "EnqueueNDRangeKernel");
+
+    // Wait for kernel execution to finish
+    event.wait();
+
+    // Profiling
+    cl_ulong start_time, end_time;
+    event.getProfilingInfo(CL_PROFILING_COMMAND_START, &start_time);
+    event.getProfilingInfo(CL_PROFILING_COMMAND_END, &end_time);
+
+    // Read output image
+    std::vector<unsigned char> outputImageData(image.total() * image.elemSize());
+    err = queue.enqueueReadImage(outputImage, CL_TRUE, {0, 0, 0}, {static_cast<size_t>(image.cols), static_cast<size_t>(image.rows), 1}, 0, 0, outputImageData.data(), nullptr, &event);
+    CHECK_ERR(err, "Read output image");
+
+    // Wait for read operation to finish
+    event.wait();
+
+    // Create output OpenCV Mat and save to file
+    cv::Mat outputMat(image.rows, image.cols, CV_8UC4, outputImageData.data());
+    cv::imwrite("output_sobel.png", outputMat);
+
+    // Convert and return execution time in milliseconds
+    return (end_time - start_time) / 1000.0; // Convert nanoseconds to milliseconds
+}
+
+
+double median_filter_image() {
+    cv::Mat image1 = cv::imread("image_add2.png", cv::IMREAD_GRAYSCALE);
+
+    if (image1.empty()) {
+        std::cerr << "Error loading image!" << std::endl;
+        return -1;
+    }
+
+    cl_int err;
+    std::vector<cl::Platform> platforms;
+    cl::Platform::get(&platforms);
+    if (platforms.empty()) {
+        std::cerr << "No OpenCL platforms found!" << std::endl;
+        return -1;
+    }
+
+    cl::Platform platform = platforms.front();
+    std::vector<cl::Device> devices;
+    platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
+    if (devices.empty()) {
+        std::cerr << "No OpenCL devices found!" << std::endl;
+        return -1;
+    }
+
+    cl::Device device = devices.front();
+    cl::Context context(device);
+    cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
+    CHECK_ERR(err, "CommandQueue");
+
+    std::string kernelSource = loadKernel("median_filter.cl");
+    cl::Program::Sources sources;
+    sources.push_back({kernelSource.c_str(), kernelSource.length()});
+
+    cl::Program program(context, sources);
+    err = program.build({device});
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error building kernel: " << err << std::endl;
+        std::cerr << "Build log: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(device) << std::endl;
+        return -1;
+    }
+
+    cl::Kernel kernel(program, "median_filter", &err);
+    CHECK_ERR(err, "Kernel");
+
+    size_t bufferSize = image1.cols * image1.rows * image1.elemSize();
+    cl::Buffer image2d1(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, bufferSize, image1.data, &err);
+    CHECK_ERR(err, "BufferImage1");
+
+    cl::Buffer outputImage2d(context, CL_MEM_WRITE_ONLY, bufferSize, nullptr, &err);
+    CHECK_ERR(err, "OutputImage");
+
+    err = kernel.setArg(0, image2d1);
+    CHECK_ERR(err, "SetArg 0");
+
+    err = kernel.setArg(1, outputImage2d);
+    CHECK_ERR(err, "SetArg 1");
+
+    err = kernel.setArg(2, image1.cols);
+    CHECK_ERR(err, "SetArg 2");
+
+    err = kernel.setArg(3, image1.rows);
+    CHECK_ERR(err, "SetArg 3");
+
+    cl::NDRange global(image1.cols, image1.rows);
+
+    double total_time = 0.0;
+
+    for (int i = 0; i < 100; ++i) {
+        cl::Event event;
+        err = queue.enqueueNDRangeKernel(kernel, cl::NullRange, global, cl::NullRange, nullptr, &event);
+        CHECK_ERR(err, "EnqueueNDRangeKernel");
+        event.wait();
+
+        cl_ulong start_time, end_time;
+        event.getProfilingInfo(CL_PROFILING_COMMAND_START, &start_time);
+        event.getProfilingInfo(CL_PROFILING_COMMAND_END, &end_time);
+
+        total_time += (end_time - start_time) / 1000.0; // Convert to microseconds
+    }
+
+    std::vector<unsigned char> outputImageData(image1.total() * image1.elemSize());
+    err = queue.enqueueReadBuffer(outputImage2d, CL_TRUE, 0, bufferSize, outputImageData.data());
+    CHECK_ERR(err, "Read output image");
+    queue.finish();
+
+    cv::Mat outputMat(image1.rows, image1.cols, CV_8UC1, outputImageData.data());
+    cv::imwrite("output_median_filter.png", outputMat);
+
+    return total_time / 100.0; // Return the average execution time in microseconds
+}
