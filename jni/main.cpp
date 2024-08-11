@@ -48,6 +48,8 @@ int main(int argc, char *argv[]) {
         log_times("cvt", cvt, iterations);
     } else if (!strcmp(ch, "9")) { // RESHAPE
         log_times("reshape", reshape_image, iterations);
+    } else if (!strcmp(ch, "10")) { // RGB to YcbCr
+        log_times("ycrcb", rgbToYCbCr, iterations);
     } else {
         std::cerr << "Invalid argument" << std::endl;
         return 1;
