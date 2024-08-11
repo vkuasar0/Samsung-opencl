@@ -7,6 +7,18 @@ adb pull /data/local/tmp/output_emboss.png ../output
 adb pull /data/local/tmp/output_gray_background.png ../output
 adb pull /data/local/tmp/output_image_cvt.png ../output
 adb pull /data/local/tmp/output_reshape.png ../output
+adb pull /data/local/tmp/output_solarize.png ../output
+adb pull /data/local/tmp/output_pixellate.png ../output
+adb pull /data/local/tmp/output_nearest_neighbor.png ../output
+adb pull /data/local/tmp/output_noop.png ../output
+adb pull /data/local/tmp/output_texture.png ../output
+adb pull /data/local/tmp/output_blend.png ../output
+adb pull /data/local/tmp/output_sobel.png ../output
+adb pull /data/local/tmp/output_ycbcr.png ../output
+adb pull /data/local/tmp/output_rgb.png ../output
+adb pull /data/local/tmp/output_median_filter.png ../output
+adb pull /data/local/tmp/output_downsized.png ../output
+adb pull /data/local/tmp/output_gradient.png ../output
 
 adb pull /data/local/tmp/report_add.csv ../output
 adb pull /data/local/tmp/report_gaussian_blur.csv ../output
@@ -17,4 +29,15 @@ adb pull /data/local/tmp/report_emboss.csv ../output
 adb pull /data/local/tmp/report_gray.csv ../output
 adb pull /data/local/tmp/report_cvt.csv ../output
 adb pull /data/local/tmp/report_reshape.csv ../output
-
+adb pull /data/local/tmp/report_solarize.csv ../output
+adb pull /data/local/tmp/report_pixellate.csv ../output
+adb pull /data/local/tmp/report_nearest_neighbor.csv ../output
+adb pull /data/local/tmp/report_noop.csv ../output
+adb pull /data/local/tmp/report_texture.csv ../output
+adb pull /data/local/tmp/report_blend.csv ../output
+adb pull /data/local/tmp/report_sobel.csv ../output
+adb pull /data/local/tmp/report_ycbcr.csv ../output
+adb pull /data/local/tmp/report_rgb.csv ../output
+adb pull /data/local/tmp/report_median_filter.csv ../output
+adb pull /data/local/tmp/report_downsized.csv ../output
+adb pull /data/local/tmp/report_gradient.csv ../output
