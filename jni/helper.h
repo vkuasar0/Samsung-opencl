@@ -18,5 +18,17 @@ double multiply_images();
 double gray_bgr();
 double cvt();
 double reshape_image();
+double rgbToYCbCr();
+double ycbcrToRgb();
+double downsize_image();
+double solarize_image();
+double pixellate_image();
+double nearestNeighborImage();
+double processImage();
+double texture();
+double perform_alpha_blending();
+double sobelEdge();
+double median_filter_image();
+double morphological_gradient_image();
 
 #endif //SAMPLE_OPENCL_NDK_MASTER_COPY_BLUR_GPU_H
