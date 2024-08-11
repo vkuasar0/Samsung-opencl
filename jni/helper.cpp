@@ -1032,3 +1032,84 @@ double reshape_image() {
     double executionTime = static_cast<double>(end_time - start_time) / 1000.0;
     return executionTime;
 }
+
+
+double rgbToYCbCr() {
+    cv::Mat image = cv::imread("image_add2.png", cv::IMREAD_COLOR);
+
+    if (image.empty()) {
+        std::cerr << "Error loading image!" << std::endl;
+        return -1;
+    }
+
+    cl_int err;
+    std::vector<cl::Platform> platforms;
+    cl::Platform::get(&platforms);
+    if (platforms.empty()) {
+        std::cerr << "No OpenCL platforms found!" << std::endl;
+        return -1;
+    }
+
+    cl::Platform platform = platforms.front();
+    std::vector<cl::Device> devices;
+    platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
+    if (devices.empty()) {
+        std::cerr << "No OpenCL devices found!" << std::endl;
+        return -1;
+    }
+
+    cl::Device device = devices.front();
+    cl::Context context(device);
+    cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
+    CHECK_ERR(err, "CommandQueue");
+
+    std::string kernelSource = loadKernel("ycrcb.cl");
+    cl::Program::Sources sources;
+    sources.push_back({kernelSource.c_str(), kernelSource.length()});
+
+    cl::Program program(context, sources);
+    err = program.build({device});
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error building kernel: " << err << std::endl;
+        std::cerr << "Build log: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(device) << std::endl;
+        return -1;
+    }
+
+    cl::Kernel kernel(program, "rgb2", &err);
+    CHECK_ERR(err, "Kernel");
+
+    size_t bufferSize = image.cols * image.rows * image.elemSize();
+    cl::Buffer inputBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, bufferSize, image.data, &err);
+    CHECK_ERR(err, "BufferImage1");
+    cl::Buffer outputBuffer(context, CL_MEM_WRITE_ONLY, bufferSize, nullptr, &err);
+    CHECK_ERR(err, "OutputImage");
+
+    err = kernel.setArg(0, inputBuffer);
+    CHECK_ERR(err, "SetArg 0");
+    err = kernel.setArg(1, outputBuffer);
+    CHECK_ERR(err, "SetArg 1");
+    err = kernel.setArg(2, image.rows);
+    CHECK_ERR(err, "SetArg 2");
+    err = kernel.setArg(3, image.cols);
+    CHECK_ERR(err, "SetArg 3");
+
+    cl::NDRange global(image.cols, image.rows);
+    cl::Event event;
+    err = queue.enqueueNDRangeKernel(kernel, cl::NullRange, global, cl::NullRange, nullptr, &event);
+    CHECK_ERR(err, "EnqueueNDRangeKernel");
+    event.wait();
+
+    cl_ulong start_time, end_time;
+    event.getProfilingInfo(CL_PROFILING_COMMAND_START, &start_time);
+    event.getProfilingInfo(CL_PROFILING_COMMAND_END, &end_time);
+
+    std::vector<unsigned char> outputImageData(bufferSize);
+    err = queue.enqueueReadBuffer(outputBuffer, CL_TRUE, 0, bufferSize, outputImageData.data());
+    CHECK_ERR(err, "Read output image");
+    queue.finish();
+
+    cv::Mat outputMat(image.rows, image.cols, CV_8UC3, outputImageData.data());
+    cv::imwrite("output_ycbcr.png", outputMat);
+
+    return (end_time - start_time) / 1000.0; // Return execution time in microseconds
+}
