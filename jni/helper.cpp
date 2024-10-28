@@ -1114,18 +1114,20 @@ double rgbToYCbCr() {
     return (end_time - start_time) / 1000.0; // Return execution time in microseconds
 }
 
-double median() {
-    cv::Mat image = cv::imread("image_add2.png", cv::IMREAD_COLOR);
-
-    if (image.empty()) {
-        std::cerr << "Error loading image!" << std::endl;
+double median()
+{
+    cv::Mat image = cv::imread("image_add1.png", cv::IMREAD_UNCHANGED);
+    if (image.empty())
+    {
+        std::cerr << "Error loading images!" << std::endl;
         return -1;
     }
 
     cl_int err;
     std::vector<cl::Platform> platforms;
     cl::Platform::get(&platforms);
-    if (platforms.empty()) {
+    if (platforms.empty())
+    {
         std::cerr << "No OpenCL platforms found!" << std::endl;
         return -1;
     }
@@ -1133,7 +1135,8 @@ double median() {
     cl::Platform platform = platforms.front();
     std::vector<cl::Device> devices;
     platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
-    if (devices.empty()) {
+    if (devices.empty())
+    {
         std::cerr << "No OpenCL devices found!" << std::endl;
         return -1;
     }
@@ -1149,7 +1152,8 @@ double median() {
 
     cl::Program program(context, sources);
     err = program.build({device});
-    if (err != CL_SUCCESS) {
+    if (err != CL_SUCCESS)
+    {
         std::cerr << "Error building kernel: " << err << std::endl;
         std::cerr << "Build log: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(device) << std::endl;
         return -1;
@@ -1158,40 +1162,44 @@ double median() {
     cl::Kernel kernel(program, "median_filter", &err);
     CHECK_ERR(err, "Kernel");
 
-    size_t bufferSize = image.cols * image.rows * image.elemSize();
-    cl::Buffer inputBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, bufferSize, image.data, &err);
+    cl::ImageFormat format(CL_RGBA, CL_UNSIGNED_INT8);
+    cl::Image2D image2d(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                         format, image.cols, image.rows, 0, image.data, &err);
     CHECK_ERR(err, "BufferImage1");
-    cl::Buffer outputBuffer(context, CL_MEM_WRITE_ONLY, bufferSize, nullptr, &err);
+    cl::Image2D outputImage2d(context, CL_MEM_READ_WRITE,
+                              format, image.cols, image.rows, 0, nullptr, &err);
     CHECK_ERR(err, "OutputImage");
-
-    err = kernel.setArg(0, inputBuffer);
+    err = kernel.setArg(0, image2d);
     CHECK_ERR(err, "SetArg 0");
-    err = kernel.setArg(1, outputBuffer);
+    err = kernel.setArg(1, outputImage2d);
     CHECK_ERR(err, "SetArg 1");
-    err = kernel.setArg(2, image.rows);
-    CHECK_ERR(err, "SetArg 2");
-    err = kernel.setArg(3, image.cols);
-    CHECK_ERR(err, "SetArg 3");
 
     cl::NDRange global(image.cols, image.rows);
     cl::Event event;
     err = queue.enqueueNDRangeKernel(kernel, cl::NullRange, global, cl::NullRange, nullptr, &event);
     CHECK_ERR(err, "EnqueueNDRangeKernel");
+
     event.wait();
 
     cl_ulong start_time, end_time;
     event.getProfilingInfo(CL_PROFILING_COMMAND_START, &start_time);
     event.getProfilingInfo(CL_PROFILING_COMMAND_END, &end_time);
 
-    std::vector<unsigned char> outputImageData(bufferSize);
-    err = queue.enqueueReadBuffer(outputBuffer, CL_TRUE, 0, bufferSize, outputImageData.data());
+    cl_int status = event.getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>();
+    if (status != CL_COMPLETE)
+    {
+        std::cerr << "Error during kernel execution" << std::endl;
+    }
+
+    std::vector<unsigned char> outputImageData(image.total() * image.elemSize());
+    std::array<size_t, 3> origin = {0, 0, 0};
+    std::array<size_t, 3> region = {static_cast<unsigned long>(image.cols), static_cast<unsigned long>(image.rows), 1};
+    err = queue.enqueueReadImage(outputImage2d, CL_TRUE, origin, region, 0, 0, outputImageData.data());
     CHECK_ERR(err, "Read output image");
     queue.finish();
-
-    cv::Mat outputMat(image.rows, image.cols, CV_8UC3, outputImageData.data());
+    cv::Mat outputMat(image.rows, image.cols, CV_8UC4, outputImageData.data());
     cv::imwrite("output_median.png", outputMat);
-
-    return (end_time - start_time) / 1000.0; // Return execution time in microseconds
+    return (end_time - start_time)/1000.0;
 }
 
 double sobelEdge()
