@@ -50,14 +50,24 @@ int main(int argc, char *argv[]) {
         log_times("reshape", reshape_image, iterations);
     } else if (!strcmp(ch, "10")) { // RGB to YcbCr
         log_times("ycrcb", rgbToYCbCr, iterations);
-    } else if (!strcmp(ch, "11")) {
-        log_times("median_filter", median, iterations);
-    } else if (!strcmp(ch, "12")) {
-        log_times("sobel_edge", sobelEdge, iterations); 
-    } else if(!strcmp(ch, "13")) {
+    } else if (!strcmp(ch, "11")) {   //MEDIAN
+        log_times("median",median , iterations);
+    } else if (!strcmp(ch, "12")) {  //SOBEL-EDGE
+        log_times("sobelEdge", sobelEdge, iterations); 
+    } else if(!strcmp(ch, "13")) {  //DOWNSIZE
         log_times("downsize", downsize_image, iterations);
-    } else if(!strcmp(ch, "14")) {
+    } else if(!strcmp(ch, "14")) {  //ALPHA-BLENDING
         log_times("alpha_blending", perform_alpha_blending, iterations);
+    } else if(!strcmp(ch, "15")) {
+        log_times("solarize", solarize_image, iterations);
+    } else if(!strcmp(ch, "16")) {
+        log_times("pixellate", pixellate_image, iterations);
+    } else if(!strcmp(ch, "17")) {
+        log_times("noop", noop_image, iterations);
+    } else if(!strcmp(ch, "18")) {
+        log_times("nearest_neighbour", nearestNeighborImage, iterations);
+    } else if(!strcmp(ch, "19")) {
+        log_times("ycrcb_bgr", ycbcrToRgb, iterations);
     } else {
         std::cerr << "Invalid argument" << std::endl;
         return 1;

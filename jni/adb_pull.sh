@@ -31,7 +31,7 @@ adb pull /data/local/tmp/report_gray.csv ../output
 adb pull /data/local/tmp/report_cvt.csv ../output
 adb pull /data/local/tmp/report_reshape.csv ../output
 adb pull /data/local/tmp/report_ycbcr.csv ../outputt
-adb pull /data/local/tmp/report_median_filter.csv ../output
-adb pull /data/local/tmp/report_sobel_edge.csv ../output
+adb pull /data/local/tmp/report_median.csv ../output
+adb pull /data/local/tmp/report_sobelEdge.csv ../output
 adb pull /data/local/tmp/report_downsize.csv ../output
 adb pull /data/local/tmp/report_alpha_blending.csv ../output
