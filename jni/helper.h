@@ -28,7 +28,7 @@ double processImage();
 double texture();
 double perform_alpha_blending();
 double sobelEdge();
-double median_filter_image();
+double median();
 double morphological_gradient_image();
 
 #endif //SAMPLE_OPENCL_NDK_MASTER_COPY_BLUR_GPU_H

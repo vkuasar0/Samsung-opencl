@@ -50,6 +50,14 @@ int main(int argc, char *argv[]) {
         log_times("reshape", reshape_image, iterations);
     } else if (!strcmp(ch, "10")) { // RGB to YcbCr
         log_times("ycrcb", rgbToYCbCr, iterations);
+    } else if (!strcmp(ch, "11")) {
+        log_times("median_filter", median, iterations);
+    } else if (!strcmp(ch, "12")) {
+        log_times("sobel_edge", sobelEdge, iterations); 
+    } else if(!strcmp(ch, "13")) {
+        log_times("downsize", downsize_image, iterations);
+    } else if(!strcmp(ch, "14")) {
+        log_times("alpha_blending", perform_alpha_blending, iterations);
     } else {
         std::cerr << "Invalid argument" << std::endl;
         return 1;
