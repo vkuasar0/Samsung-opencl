@@ -16,6 +16,7 @@ adb pull /data/local/tmp/output_pixellate.png ../output
 adb pull /data/local/tmp/output_nearest_neighbor.png ../output
 adb pull /data/local/tmp/output_noop.png ../output
 adb pull /data/local/tmp/output_texture.png ../output
+adb pull /data/local/tmp/output_blend.png ../output
 adb pull /data/local/tmp/output_sobel.png ../output
 adb pull /data/local/tmp/output_median_filter.png ../output
 
