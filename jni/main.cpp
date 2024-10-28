@@ -110,6 +110,12 @@ int main(int argc, char *argv[]) {
         of << "," << time << "\n";
     }
 
+    else if (!strcmp(ch, "24")) { // ALPHA BLEND
+        double time = perform_alpha_blending();
+        of.open(write_filename, std::ios::app);
+        of << "," << time << "\n";
+    }
+
     else if (!strcmp(ch, "25")) { // SOBEL EDGE
         double time = sobelEdge();
         of.open(write_filename, std::ios::app);
