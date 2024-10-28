@@ -23,14 +23,26 @@ __kernel void sobelEdge(__read_only image2d_t srcImage, __write_only image2d_t d
             int2 coord = pos + (int2)(i, j);
             coord.x = clamp(coord.x, 0, get_image_width(srcImage) - 1);
             coord.y = clamp(coord.y, 0, get_image_height(srcImage) - 1);
-            
-            float4 color = read_imagef(srcImage, sampler, coord);
+
+            // Read color as uint4 and convert to float4 for calculations
+            uint4 color_uint = read_imageui(srcImage, sampler, coord);
+            float4 color = (float4)(color_uint.x, color_uint.y, color_uint.z, color_uint.w);
+
+            // Apply Sobel filters
             sumX += Gx[i + 1][j + 1] * color;
             sumY += Gy[i + 1][j + 1] * color;
         }
     }
-    
+
     float4 magnitude = sqrt(sumX * sumX + sumY * sumY);
-    magnitude.w = 1.0f; // Ensure the alpha channel is set to 1.0
-    write_imagef(dstImage, pos, magnitude);
+    magnitude.w = 255.0f; // Set alpha to fully opaque
+
+    uint4 output_pixel = (uint4)(
+        clamp((int)(magnitude.x + 0.5f), 0, 255),
+        clamp((int)(magnitude.y + 0.5f), 0, 255),
+        clamp((int)(magnitude.z + 0.5f), 0, 255),
+        255 // Ensure alpha is set to maximum
+    );
+
+    write_imageui(dstImage, pos, output_pixel);
 }

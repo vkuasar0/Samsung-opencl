@@ -30,5 +30,5 @@ double perform_alpha_blending();
 double sobelEdge();
 double median();
 double morphological_gradient_image();
-
+double noop_image();
 #endif //SAMPLE_OPENCL_NDK_MASTER_COPY_BLUR_GPU_H
