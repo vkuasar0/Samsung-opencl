@@ -2129,3 +2129,120 @@ double median_filter_image() {
 
     return total_time / 100.0; // Return the average execution time in microseconds
 }
+
+double perform_alpha_blending() {
+    cv::Mat image1 = cv::imread("image_add1.png", cv::IMREAD_UNCHANGED);
+    cv::Mat image2 = cv::imread("image_add2.png", cv::IMREAD_UNCHANGED);
+
+    if (image1.empty() || image2.empty()) {
+        std::cerr << "Error loading images!" << std::endl;
+        return -1;
+    }
+
+    if (image1.size() != image2.size()) {
+        std::cerr << "Images must be the same size!" << std::endl;
+        return -1;
+    }
+
+    unsigned int width = image1.cols;
+    unsigned int height = image1.rows;
+    size_t bufferSize = width * height * sizeof(cl_uchar4);
+
+    std::vector<cl_uchar4> img1Data(width * height);
+    std::vector<cl_uchar4> img2Data(width * height);
+    std::vector<cl_uchar4> outputData(width * height);
+
+    // Copy image data to vectors
+    std::memcpy(img1Data.data(), image1.data, bufferSize);
+    std::memcpy(img2Data.data(), image2.data, bufferSize);
+
+    cl_int err;
+    std::vector<cl::Platform> platforms;
+    cl::Platform::get(&platforms);
+    if (platforms.empty()) {
+        std::cerr << "No OpenCL platforms found!" << std::endl;
+        return -1;
+    }
+
+    cl::Platform platform = platforms.front();
+    std::vector<cl::Device> devices;
+    platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
+    if (devices.empty()) {
+        std::cerr << "No OpenCL devices found!" << std::endl;
+        return -1;
+    }
+
+    cl::Device device = devices.front();
+    cl::Context context(device);
+    cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
+    CHECK_ERR(err, "CommandQueue");
+
+    std::string kernelSource = loadKernel("alpha_blend.cl");
+    cl::Program::Sources sources;
+    sources.push_back({kernelSource.c_str(), kernelSource.length()});
+
+    cl::Program program(context, sources);
+    err = program.build({device});
+    if (err != CL_SUCCESS) {
+        std::cerr << "Error building kernel: " << err << std::endl;
+        std::cerr << "Build log: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(device) << std::endl;
+        return -1;
+    }
+
+    cl::Kernel kernel(program, "alpha_blending", &err);
+    CHECK_ERR(err, "Kernel");
+
+    cl::Buffer img1Buffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, bufferSize, img1Data.data(), &err);
+    CHECK_ERR(err, "Img1Buffer");
+
+    cl::Buffer img2Buffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, bufferSize, img2Data.data(), &err);
+    CHECK_ERR(err, "Img2Buffer");
+
+    cl::Buffer outputBuffer(context, CL_MEM_WRITE_ONLY, bufferSize, nullptr, &err);
+    CHECK_ERR(err, "OutputBuffer");
+
+    err = kernel.setArg(0, img1Buffer);
+    CHECK_ERR(err, "SetArg 0");
+
+    err = kernel.setArg(1, img2Buffer);
+    CHECK_ERR(err, "SetArg 1");
+
+    err = kernel.setArg(2, outputBuffer);
+    CHECK_ERR(err, "SetArg 2");
+
+    err = kernel.setArg(3, 0.7f); // alpha value
+    CHECK_ERR(err, "SetArg 3");
+
+    err = kernel.setArg(4, width);
+    CHECK_ERR(err, "SetArg 4");
+
+    err = kernel.setArg(5, height);
+    CHECK_ERR(err, "SetArg 5");
+
+    cl::NDRange global(width, height);
+
+    double total_time = 0.0;
+
+    for (int i = 0; i < 100; ++i) {
+        cl::Event event;
+        err = queue.enqueueNDRangeKernel(kernel, cl::NullRange, global, cl::NullRange, nullptr, &event);
+        CHECK_ERR(err, "EnqueueNDRangeKernel");
+        event.wait();
+
+        cl_ulong start_time, end_time;
+        event.getProfilingInfo(CL_PROFILING_COMMAND_START, &start_time);
+        event.getProfilingInfo(CL_PROFILING_COMMAND_END, &end_time);
+
+        total_time += (end_time - start_time) / 1000.0; // Convert to microseconds
+    }
+
+    err = queue.enqueueReadBuffer(outputBuffer, CL_TRUE, 0, bufferSize, outputData.data());
+    CHECK_ERR(err, "ReadOutputBuffer");
+    queue.finish();
+
+    cv::Mat outputImage(height, width, CV_8UC4, outputData.data());
+    cv::imwrite("output_blend.png", outputImage);
+
+    return total_time / 100.0; // Return the average execution time in microseconds
+}
+
